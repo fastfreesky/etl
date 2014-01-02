@@ -1,0 +1,95 @@
+#test cmd
+# time java -server -Xms512M -Xmx4G -jar etl2.jar  /tmp/etl.yaml   --etl -Dinput.path=/data/disk08/backup/rawlog/2012-07-01/
+
+#清洗模块配置文件 
+etl:
+  date: "2012-12-21"
+#状态记录路径,目前支持混记录
+  state.path: /Application/etl2/state
+ 
+#输出路径  ,name[日志格式],通过日志类型确定输出目录,若输出到Hadoop文件,则使用hdfs_path,若为本地输出,则为local_path
+  output.path: 
+    - name: fc
+      local_path: 
+      hdfs_path: 
+    - name: mvod
+      local_path: 
+      hdfs_path: 
+    - name: default
+      local_path: 
+      hdfs_path:         
+#输入路径  
+#[name]路径别名,对应输出的name,用于确定输出路径[add为新增目录,over将覆盖目前所有目录,仅仅采用当前目录,即忽略公共部分,优先数据库获取路径
+#[path]别名对应的路径,","区分多个路径,目前只能为本地文件
+  input.path:
+    - name: add
+      path: 
+    - name: over
+      path: 
+
+#输入的正则匹配规则，即读入文件的后缀名  
+  input.regex.file: .*\.gz$
+  
+#上载文件落地日志
+  state.load.record.file: load.state.txt  
+#清洗进度文件  
+  state.record.file: etl.state.txt
+#断点清洗保存文件（承接上一次清洗任务）
+  state.freeze_file: etl.freeze_file.txt
+#写入文件的缓冲带下
+  write.file.buffMem: 4194304  
+  write.file.level: 10000
+  write.file.maxbuffMem: 536870912
+#输入输出数据库配置  
+  conndba:
+      database: 223.203.192.248/tianyu_test
+      user: dba
+      pwd: dba
+#清洗任务扫描最大时间(单位为s)
+  maxTime: 30
+#清洗任务添加间隔扫描时间(单位为s)
+  loopTime: 5    
+  
+  killDate: "17:20:00"      
+#章鱼框架配置文件  
+octopus:
+#运行的线程个数
+  run.thread.num: 1
+#添加任务模块  
+  task.class.name: com.ccindex.factory.addTask.AddFileTask
+#任务完成写入模块  
+  output.class.name: com.ccindex.factory.output.WrittenFile
+#文件清洗框架,别名及对应的类,若匹配不到所属的bean,则最终落入name为default的bean,用于鉴别process
+#[name]框架别名
+#[class.name]框架使用的类名
+  bean.class.names: 
+      - name: mvod
+        class.name: com.ccindex.factory.bean.MovdBean
+      - name: fc
+        class.name: com.ccindex.factory.bean.FcBean
+      - name: default
+        class.name: com.ccindex.factory.bean.DefaultBean	   
+        
+#文件清洗类型
+#[name]清洗别名
+#[class.name]清洗使用的类名
+#[bean.class]使用该清洗模块的框架及输出目录用.分割,使用","号区分使用者
+  process.class.names: 
+      - name: fc
+        class.name: com.ccindex.factory.process.FcProcess
+        out.way: local
+      - name: mvod
+        class.name: com.ccindex.factory.process.MvodProcess
+        out.way: local        
+      - name: default
+        class.name: com.ccindex.factory.process.DefaultProcess
+        out.way: local
+        
+#bean与process的关系,优先数据库获取,此处为特殊情况使用
+  bean.process.relation:
+      - bean: mvod
+        process: 
+      - bean: fc
+        process: 
+      - bean: default
+        process:         
